@@ -21,10 +21,11 @@ export async function POST(request) {
         generationConfig: { responseMimeType: "application/json" }
     });
 
-    const prompt = `You are an expert TCG grader. Analyze the Pokémon card in the image. 
+    // PURE ASCII PROMPT (No accents or special characters)
+    const prompt = `You are an expert TCG grader. Analyze the Pokemon card in the image. 
     Return a JSON object with strictly these keys:
     - "cardDetected" (boolean): true if a card is clearly visible.
-    - "pokemonName" (string): The name of the Pokémon (e.g. Charizard ex).
+    - "pokemonName" (string): The name of the Pokemon (e.g. Charizard ex).
     - "cardNumber" (string): The collector number at the bottom corner (e.g., '172/151', '36/114', or '001/165').
     If no card is clearly visible, return {"cardDetected": false}.`;
 
@@ -46,7 +47,7 @@ export async function POST(request) {
     // Isolate the prefix number (e.g., "172/151" becomes "172")
     const printedNumber = aiData.cardNumber.split('/')[0].replace(/[^a-zA-Z0-9]/g, ''); 
 
-    // Query the Pokémon TCG API
+    // Query the Pokemon TCG API
     const tcgResponse = await fetch(
       `https://api.pokemontcg.io/v2/cards?q=name:"${aiData.pokemonName}" number:"${printedNumber}"`,
       { headers: { 'X-Api-Key': process.env.POKEMONTCG_API_KEY || '' } }
