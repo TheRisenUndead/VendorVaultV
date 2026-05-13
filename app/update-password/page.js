@@ -1,4 +1,3 @@
-// app/update-password/page.js
 "use client";
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
@@ -11,7 +10,6 @@ export default function UpdatePasswordPage() {
   const router = useRouter();
 
   useEffect(() => {
-    // Optional: Check if we actually have a session established by the recovery link
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
@@ -26,7 +24,6 @@ export default function UpdatePasswordPage() {
     setLoading(true);
     setMessage({ type: '', text: '' });
 
-    // This updates the password for the currently authenticated user
     const { error } = await supabase.auth.updateUser({
       password: password
     });
@@ -35,7 +32,6 @@ export default function UpdatePasswordPage() {
       setMessage({ type: 'error', text: error.message });
       setLoading(false);
     } else {
-      // Success! Push them back to the dashboard
       alert('Password updated successfully!');
       router.push('/dashboard');
     }
