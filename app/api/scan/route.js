@@ -29,8 +29,7 @@ export async function POST(request) {
     const result = await model.generateContent([prompt, imagePart]);
     const responseText = await result.response.text();
     
-    const cleanJson = responseText.replace(/```json|
-```/g, "").trim();
+    const cleanJson = responseText.replace(/```json|```/g, "").trim();
     
     let aiData;
     try {
