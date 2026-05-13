@@ -5,7 +5,6 @@ import { supabase } from '@/lib/supabase';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
-// 1. The actual Scanner Logic
 function ScannerComponent() {
   const webcamRef = useRef(null);
   const isProcessingRef = useRef(false);
@@ -15,18 +14,12 @@ function ScannerComponent() {
   
   const [user, setUser] = useState(null);
   const [scanStatus, setScanStatus] = useState('searching'); 
-  const [loadingMsg, setLoadingMsg] = useState('Looking for a card...');
+  const [loadingMsg, setLoadingMsg] = useState('Reading set codes...');
 
   useEffect(() => {
     const checkAccess = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return router.push('/login');
-      
-      const isAdmin = user.email === 'kenulas@hotmail.com';
-      if (!isAdmin) {
-        alert("Scanner requires a Pro Plan or Admin Access.");
-        return router.push('/dashboard');
-      }
       setUser(user);
     };
     checkAccess();
@@ -37,7 +30,6 @@ function ScannerComponent() {
     if (!webcamRef.current || !webcamRef.current.getScreenshot) return;
 
     const imageSrc = webcamRef.current.getScreenshot();
-    
     if (!imageSrc || imageSrc.length < 500) return;
 
     isProcessingRef.current = true;
@@ -50,10 +42,11 @@ function ScannerComponent() {
       });
 
       const data = await response.json();
+      console.log("AI Output:", data); // Debugging log
 
       if (data.cardDetected && data.cardId) {
         setScanStatus('found');
-        setLoadingMsg(`Identified! Routing...`);
+        setLoadingMsg(`Found: ${data.metadata?.name}! Routing...`);
         
         setTimeout(() => {
           router.push(`/card/${data.cardId}?collectionId=${collectionId}`);
@@ -78,7 +71,7 @@ function ScannerComponent() {
   return (
     <div className="flex flex-col min-h-screen bg-slate-950 text-white">
       <div className="p-4 flex justify-between items-center z-10 bg-slate-950/80 backdrop-blur-md absolute top-0 w-full">
-        <h2 className="font-bold text-emerald-500">Auto-Scanner Active</h2>
+        <h2 className="font-bold text-emerald-500">Macro Scanner Active</h2>
         <Link href={collectionId ? `/collections/${collectionId}` : "/dashboard"} className="text-slate-400 hover:text-white">
           Cancel
         </Link>
@@ -99,21 +92,27 @@ function ScannerComponent() {
           className={`absolute min-w-full min-h-full object-cover transition-opacity duration-500 ${scanStatus === 'found' ? 'opacity-40' : 'opacity-100'}`}
         />
         
-        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center pointer-events-none">
-          <div className={`w-[75vw] h-[55vh] max-w-sm border-2 rounded-xl relative overflow-hidden transition-colors duration-300 ${scanStatus === 'found' ? 'border-emerald-500 bg-emerald-500/20' : 'border-white/40'}`}>
+        {/* REWORKED TARGETING OVERLAY - Now a small "Barcode" style box */}
+        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center pointer-events-none mt-20">
+          <div className={`w-[70vw] h-[20vh] max-w-md border-2 rounded-xl relative overflow-hidden transition-colors duration-300 ${scanStatus === 'found' ? 'border-emerald-500 bg-emerald-500/20' : 'border-white/40 bg-black/20'}`}>
             {scanStatus === 'searching' && (
               <div className="w-full h-0.5 bg-emerald-500 absolute top-0 animate-[scan_2s_ease-in-out_infinite] shadow-[0_0_15px_rgba(16,185,129,0.8)]"></div>
             )}
+            {/* Corner brackets */}
+            <div className={`absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 rounded-tl-lg ${scanStatus === 'found' ? 'border-emerald-400' : 'border-white'}`}></div>
+            <div className={`absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 rounded-tr-lg ${scanStatus === 'found' ? 'border-emerald-400' : 'border-white'}`}></div>
+            <div className={`absolute -bottom-1 -left-1 w-6 h-6 border-b-4 border-l-4 rounded-bl-lg ${scanStatus === 'found' ? 'border-emerald-400' : 'border-white'}`}></div>
+            <div className={`absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 rounded-br-lg ${scanStatus === 'found' ? 'border-emerald-400' : 'border-white'}`}></div>
           </div>
           
-          <div className="mt-8 flex flex-col items-center">
+          <div className="mt-6 flex flex-col items-center">
             {scanStatus === 'found' ? (
               <div className="bg-emerald-500 text-slate-950 font-bold px-6 py-3 rounded-full text-lg shadow-lg shadow-emerald-500/50 flex items-center gap-2">
                 <span>✓</span> {loadingMsg}
               </div>
             ) : (
               <p className="text-white font-mono text-sm bg-black/60 px-4 py-2 rounded-full backdrop-blur-sm">
-                Hold card steady in frame...
+                Align bottom corner (Set & Number) in box
               </p>
             )}
           </div>
@@ -123,7 +122,6 @@ function ScannerComponent() {
   );
 }
 
-// 2. The Exported Page with Suspense Wrapper
 export default function AutoScannerPage() {
   return (
     <Suspense fallback={<div className="min-h-screen bg-slate-950 text-white flex items-center justify-center">Loading Camera...</div>}>

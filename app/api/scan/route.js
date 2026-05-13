@@ -1,75 +1,87 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-// Initialize the free Gemini client
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-
 export async function POST(request) {
   try {
-    const { image } = await request.json(); 
-    
-    // Ensure we actually got a valid string before trying to split it
-    if (!image || !image.includes(',')) {
-      return NextResponse.json({ error: 'Invalid image format' }, { status: 400 });
+    if (!process.env.GEMINI_API_KEY) {
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
     }
 
-    // Strip the "data:image/jpeg;base64," prefix so Gemini can read it
+    const { image } = await request.json(); 
+    if (!image) return NextResponse.json({ error: 'No image provided' }, { status: 400 });
+
     const base64Data = image.split(',')[1];
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    
+    // We can use 1.5-flash as it is lightning fast for small text reading
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-    const model = genAI.getGenerativeModel({ 
-        model: "gemini-2.5-flash",
-        generationConfig: { responseMimeType: "application/json" }
-    });
-
-    // PURE ASCII PROMPT (No accents or special characters)
-    const prompt = `You are an expert TCG grader. Analyze the Pokemon card in the image. 
-    Return a JSON object with strictly these keys:
-    - "cardDetected" (boolean): true if a card is clearly visible.
-    - "pokemonName" (string): The name of the Pokemon (e.g. Charizard ex).
-    - "cardNumber" (string): The collector number at the bottom corner (e.g., '172/151', '36/114', or '001/165').
-    If no card is clearly visible, return {"cardDetected": false}.`;
+    // REWORKED PROMPT: Focus entirely on the Set Code and Number
+    const prompt = `You are an expert TCG barcode reader. Analyze this close-up of a Pokemon card's bottom corner. 
+    Extract the 'setCode' (e.g., 'sv6', 'MEW', 'PAL', 'SV3pt5') and the 'cardNumber' (e.g., '112/101', '172/165').
+    Return ONLY a JSON object: {"cardDetected": true, "setCode": "sv6", "cardNumber": "112/101"}. 
+    If you cannot read both clearly, return {"cardDetected": false}.`;
 
     const imagePart = {
-      inlineData: {
-        data: base64Data,
-        mimeType: "image/jpeg"
-      },
+      inlineData: { data: base64Data, mimeType: "image/jpeg" },
     };
 
     const result = await model.generateContent([prompt, imagePart]);
-    const responseText = result.response.text();
-    const aiData = JSON.parse(responseText);
+    const responseText = await result.response.text();
+    
+    const cleanJson = responseText.replace(/```json|
+```/g, "").trim();
+    
+    let aiData;
+    try {
+      aiData = JSON.parse(cleanJson);
+    } catch (e) {
+      return NextResponse.json({ cardDetected: false, error: "AI formatting error" });
+    }
 
-    if (!aiData.cardDetected || !aiData.pokemonName || !aiData.cardNumber) {
+    if (!aiData.cardDetected || !aiData.cardNumber || !aiData.setCode) {
       return NextResponse.json({ cardDetected: false });
     }
 
-    // Isolate the prefix number (e.g., "172/151" becomes "172")
-    const printedNumber = aiData.cardNumber.split('/')[0].replace(/[^a-zA-Z0-9]/g, ''); 
+    console.log(`AI identified Set: ${aiData.setCode}, Number: ${aiData.cardNumber}`);
 
-    // Query the Pokemon TCG API
+    // Clean the extracted data (e.g., "112/101 AR" becomes "112")
+    const cleanNumber = aiData.cardNumber.split('/')[0].replace(/[^0-9]/g, ''); 
+    const cleanSet = aiData.setCode.toLowerCase();
+
+    // Query the database for ALL cards with this number
     const tcgResponse = await fetch(
-      `https://api.pokemontcg.io/v2/cards?q=name:"${aiData.pokemonName}" number:"${printedNumber}"`,
+      `https://api.pokemontcg.io/v2/cards?q=number:"${cleanNumber}"`,
       { headers: { 'X-Api-Key': process.env.POKEMONTCG_API_KEY || '' } }
     );
 
     const tcgData = await tcgResponse.json();
 
     if (tcgData.data && tcgData.data.length > 0) {
+      
+      // Filter the results to find the card that belongs to the scanned Set Code
+      let matchedCard = tcgData.data.find(card => 
+        card.id.toLowerCase().includes(cleanSet) || 
+        card.set.id.toLowerCase().includes(cleanSet) ||
+        (card.set.ptcgoCode && card.set.ptcgoCode.toLowerCase() === cleanSet)
+      );
+
+      // If we couldn't perfectly match the set string, default to the first result
+      if (!matchedCard) {
+        matchedCard = tcgData.data[0];
+      }
+
       return NextResponse.json({ 
         cardDetected: true, 
-        cardId: tcgData.data[0].id,
-        metadata: {
-          name: tcgData.data[0].name,
-          set: tcgData.data[0].set.name,
-        }
+        cardId: matchedCard.id,
+        metadata: { name: matchedCard.name, set: matchedCard.set.name }
       });
-    } else {
-      return NextResponse.json({ cardDetected: false });
     }
 
+    return NextResponse.json({ cardDetected: false, reason: "Card not found in database" });
+
   } catch (error) {
-    console.error("API Error:", error);
-    return NextResponse.json({ error: 'Processing failed' }, { status: 500 });
+    console.error("DETAILED SERVER ERROR:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
