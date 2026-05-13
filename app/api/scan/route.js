@@ -15,7 +15,7 @@ export async function POST(request) {
     
     // We can use 1.5-flash as it is lightning fast for small text reading
     const model = genAI.getGenerativeModel({
-      model: "gemini-2.0-flash"
+      model: "gemini-1.5-flash"
     });
 
     // REWORKED PROMPT: Focus entirely on the Set Code and Number
