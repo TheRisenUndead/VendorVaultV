@@ -26,15 +26,13 @@ export default function Dashboard() {
   };
 
   const handleOpenScanner = () => {
-    // Check if user is admin OR has a paid plan (mocked logic)
-    const isAdmin = user.email === 'kenulas@hotmail.com';
-    const isPaidUser = false; // We will connect this to Stripe later
+    const isAdmin = user?.email === 'kenulas@hotmail.com';
+    const isPaidUser = false; 
 
     if (isAdmin || isPaidUser) {
-      router.push('/scanner'); // We will build this next!
+      router.push('/scanner'); 
     } else {
       alert("Please upgrade to a Pro Plan to access the live scanner.");
-      // router.push('/pricing'); 
     }
   };
 
@@ -46,7 +44,11 @@ export default function Dashboard() {
       <nav className="border-b border-slate-800 p-4 flex justify-between items-center bg-slate-900/50">
         <h1 className="text-xl font-bold text-emerald-500">Vendor Vault</h1>
         <div className="flex gap-6 items-center">
-          <Link href="/profile" className="text-sm text-slate-300 hover:text-white transition-colors">
+          {/* Added Collections Link */}
+          <Link href="/collections" className="text-sm font-semibold text-slate-200 hover:text-emerald-400 transition-colors">
+            Collections
+          </Link>
+          <Link href="/profile" className="text-sm text-slate-400 hover:text-white transition-colors">
             Profile
           </Link>
           <button 
@@ -59,17 +61,27 @@ export default function Dashboard() {
       </nav>
 
       <div className="p-6 max-w-6xl mx-auto space-y-8">
-        <header className="flex justify-between items-end">
+        <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
           <div>
             <h2 className="text-3xl font-bold text-slate-100">Inventory Overview</h2>
             <p className="text-slate-400">Welcome back, {user.email}</p>
           </div>
-          <button 
-            onClick={handleOpenScanner}
-            className="bg-emerald-600 hover:bg-emerald-500 px-6 py-3 rounded-xl font-bold shadow-lg transition-all"
-          >
-            + Open Scanner
-          </button>
+          
+          {/* Action Buttons */}
+          <div className="flex gap-3 w-full md:w-auto">
+            <Link 
+              href="/collections"
+              className="flex-1 md:flex-none text-center bg-slate-800 hover:bg-slate-700 border border-slate-700 px-6 py-3 rounded-xl font-bold transition-all"
+            >
+              My Binders
+            </Link>
+            <button 
+              onClick={handleOpenScanner}
+              className="flex-1 md:flex-none bg-emerald-600 hover:bg-emerald-500 px-6 py-3 rounded-xl font-bold shadow-lg transition-all"
+            >
+              + Quick Scan
+            </button>
+          </div>
         </header>
 
         {/* Stats Grid */}
@@ -92,11 +104,10 @@ export default function Dashboard() {
         <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
           <div className="p-4 border-b border-slate-800 flex justify-between items-center">
             <h3 className="font-bold">Recent Additions</h3>
-            <button className="text-sm text-emerald-500 hover:underline">View All</button>
           </div>
           <div className="p-12 text-center text-slate-500">
             <p>Your vault is currently empty.</p>
-            <p className="text-sm mt-2">Scan your first card to begin tracking.</p>
+            <p className="text-sm mt-2">Create a collection and scan your first card.</p>
           </div>
         </div>
       </div>
