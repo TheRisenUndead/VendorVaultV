@@ -20,16 +20,8 @@ export default function LoginPage() {
       setMessage(error.message);
       setLoading(false);
     } else {
-      router.push('/dashboard'); // We'll create this next!
+      router.push('/dashboard');
     }
-  };
-
-  const handleSignUp = async () => {
-    setLoading(true);
-    const { error } = await supabase.auth.signUp({ email, password });
-    if (error) setMessage(error.message);
-    else setMessage('Check your email for the confirmation link!');
-    setLoading(false);
   };
 
   return (
@@ -70,13 +62,14 @@ export default function LoginPage() {
             >
               {loading ? 'Processing...' : 'Login'}
             </button>
-            <button
-              type="button"
-              onClick={handleSignUp}
-              className="text-sm text-slate-400 hover:text-white transition-colors"
+            
+            {/* Updated this to a Link component pointing to /signup */}
+            <Link
+              href="/signup"
+              className="text-sm text-center text-slate-400 hover:text-white transition-colors mt-2"
             >
               Don't have an account? Sign Up
-            </button>
+            </Link>
           </div>
         </form>
         
