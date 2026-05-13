@@ -2,17 +2,17 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 export default function Dashboard() {
   const [user, setUser] = useState(null);
   const router = useRouter();
 
   useEffect(() => {
-    // Check if user is logged in
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        router.push('/login'); // Boot them if not logged in
+        router.push('/login');
       } else {
         setUser(user);
       }
@@ -25,6 +25,19 @@ export default function Dashboard() {
     router.push('/');
   };
 
+  const handleOpenScanner = () => {
+    // Check if user is admin OR has a paid plan (mocked logic)
+    const isAdmin = user.email === 'kenulas@hotmail.com';
+    const isPaidUser = false; // We will connect this to Stripe later
+
+    if (isAdmin || isPaidUser) {
+      router.push('/scanner'); // We will build this next!
+    } else {
+      alert("Please upgrade to a Pro Plan to access the live scanner.");
+      // router.push('/pricing'); 
+    }
+  };
+
   if (!user) return <div className="min-h-screen bg-slate-950 flex items-center justify-center text-white">Loading...</div>;
 
   return (
@@ -32,12 +45,17 @@ export default function Dashboard() {
       {/* Top Navigation */}
       <nav className="border-b border-slate-800 p-4 flex justify-between items-center bg-slate-900/50">
         <h1 className="text-xl font-bold text-emerald-500">Vendor Vault</h1>
-        <button 
-          onClick={handleSignOut}
-          className="text-sm text-slate-400 hover:text-white transition-colors"
-        >
-          Sign Out
-        </button>
+        <div className="flex gap-6 items-center">
+          <Link href="/profile" className="text-sm text-slate-300 hover:text-white transition-colors">
+            Profile
+          </Link>
+          <button 
+            onClick={handleSignOut}
+            className="text-sm text-slate-400 hover:text-white transition-colors"
+          >
+            Sign Out
+          </button>
+        </div>
       </nav>
 
       <div className="p-6 max-w-6xl mx-auto space-y-8">
@@ -46,7 +64,10 @@ export default function Dashboard() {
             <h2 className="text-3xl font-bold text-slate-100">Inventory Overview</h2>
             <p className="text-slate-400">Welcome back, {user.email}</p>
           </div>
-          <button className="bg-emerald-600 hover:bg-emerald-500 px-6 py-3 rounded-xl font-bold shadow-lg transition-all">
+          <button 
+            onClick={handleOpenScanner}
+            className="bg-emerald-600 hover:bg-emerald-500 px-6 py-3 rounded-xl font-bold shadow-lg transition-all"
+          >
             + Open Scanner
           </button>
         </header>
