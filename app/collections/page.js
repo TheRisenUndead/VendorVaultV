@@ -117,9 +117,12 @@ export default function CollectionsPage() {
                 </div>
                 
                 <div className="flex gap-2">
-                  <button className="flex-1 bg-slate-800 hover:bg-slate-700 py-2 rounded-lg text-sm font-semibold transition-all">
+                  <Link 
+                    href={`/collections/${col.id}`}
+                    className="flex-1 bg-slate-800 hover:bg-slate-700 py-2 rounded-lg text-sm font-semibold transition-all text-center"
+                  >
                     View Cards
-                  </button>
+                  </Link>
                   <button className="flex-1 bg-emerald-900/30 text-emerald-400 hover:bg-emerald-600 hover:text-white py-2 rounded-lg text-sm font-semibold border border-emerald-800/50 transition-all">
                     Scan to Here
                   </button>
