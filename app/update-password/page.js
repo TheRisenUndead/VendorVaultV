@@ -54,7 +54,7 @@ export default function UpdatePasswordPage() {
               minLength={6}
               className="mt-1 w-full rounded-lg bg-slate-800 border border-slate-700 p-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
+              placeholder="********"
             />
           </div>
 
