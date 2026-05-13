@@ -14,7 +14,7 @@ export async function POST(request) {
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     
     // We can use 1.5-flash as it is lightning fast for small text reading
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-pro-vision" });
 
     // REWORKED PROMPT: Focus entirely on the Set Code and Number
     const prompt = `You are an expert TCG barcode reader. Analyze this close-up of a Pokemon card's bottom corner. 
