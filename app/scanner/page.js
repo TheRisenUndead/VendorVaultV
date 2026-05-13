@@ -1,22 +1,22 @@
 ﻿"use client";
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, Suspense } from 'react';
 import Webcam from 'react-webcam';
 import { supabase } from '@/lib/supabase';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
-export default function AutoScannerPage() {
+// 1. The actual Scanner Logic
+function ScannerComponent() {
   const webcamRef = useRef(null);
   const isProcessingRef = useRef(false);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const collectionId = searchParams.get('collectionId') || ''; // Grabs the target binder ID
+  const collectionId = searchParams.get('collectionId') || '';
   
   const [user, setUser] = useState(null);
-  const [scanStatus, setScanStatus] = useState('searching'); // searching, found, error
+  const [scanStatus, setScanStatus] = useState('searching'); 
   const [loadingMsg, setLoadingMsg] = useState('Looking for a card...');
 
-  // 1. Check Permissions
   useEffect(() => {
     const checkAccess = async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -32,18 +32,13 @@ export default function AutoScannerPage() {
     checkAccess();
   }, [router]);
 
-  // 2. The Auto-Scan Engine
   const runAutoScan = useCallback(async () => {
     if (isProcessingRef.current || scanStatus === 'found') return;
     if (!webcamRef.current || !webcamRef.current.getScreenshot) return;
 
     const imageSrc = webcamRef.current.getScreenshot();
     
-    // OBS VIRTUAL CAMERA FIX: Check if the buffer returned empty
-    if (!imageSrc || imageSrc.length < 500) {
-      console.warn("OBS returned an empty frame. Skipping...");
-      return;
-    }
+    if (!imageSrc || imageSrc.length < 500) return;
 
     isProcessingRef.current = true;
 
@@ -57,37 +52,31 @@ export default function AutoScannerPage() {
       const data = await response.json();
 
       if (data.cardDetected && data.cardId) {
-        // CARD FOUND!
         setScanStatus('found');
-        setLoadingMsg(`Identified: ${data.metadata?.name}! Routing...`);
+        setLoadingMsg(`Identified! Routing...`);
         
-        // Push to the details page, and carry the collection ID with us
         setTimeout(() => {
           router.push(`/card/${data.cardId}?collectionId=${collectionId}`);
         }, 1500);
       } else {
-        // No card seen, unlock for the next frame
         isProcessingRef.current = false;
       }
-
     } catch (error) {
       console.error("Scan API Error:", error);
       isProcessingRef.current = false; 
     }
   }, [scanStatus, router, collectionId]);
 
-  // 3. The Continuous Loop (3 seconds prevents hitting free tier rate limits)
   useEffect(() => {
     if (scanStatus === 'found' || !user) return;
     const interval = setInterval(() => { runAutoScan(); }, 3000);
     return () => clearInterval(interval);
   }, [runAutoScan, scanStatus, user]);
 
-  if (!user) return <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center">Verifying Access...</div>;
+  if (!user) return <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center">Verifying...</div>;
 
   return (
-    <main className="flex flex-col min-h-screen bg-slate-950 text-white">
-      {/* Header */}
+    <div className="flex flex-col min-h-screen bg-slate-950 text-white">
       <div className="p-4 flex justify-between items-center z-10 bg-slate-950/80 backdrop-blur-md absolute top-0 w-full">
         <h2 className="font-bold text-emerald-500">Auto-Scanner Active</h2>
         <Link href={collectionId ? `/collections/${collectionId}` : "/dashboard"} className="text-slate-400 hover:text-white">
@@ -95,14 +84,13 @@ export default function AutoScannerPage() {
         </Link>
       </div>
 
-      {/* Camera Area */}
       <div className="relative flex-grow flex items-center justify-center overflow-hidden bg-black pt-16">
         <Webcam
           audio={false}
           ref={webcamRef}
           screenshotFormat="image/jpeg"
-          screenshotQuality={1} // Fixes blurry virtual camera output
-          forceScreenshotSourceSize={true} // Bypasses browser CSS scaling
+          screenshotQuality={1}
+          forceScreenshotSourceSize={true}
           videoConstraints={{ 
             facingMode: "environment",
             width: { ideal: 1920 },
@@ -111,7 +99,6 @@ export default function AutoScannerPage() {
           className={`absolute min-w-full min-h-full object-cover transition-opacity duration-500 ${scanStatus === 'found' ? 'opacity-40' : 'opacity-100'}`}
         />
         
-        {/* Targeting Overlay */}
         <div className="absolute inset-0 z-10 flex flex-col items-center justify-center pointer-events-none">
           <div className={`w-[75vw] h-[55vh] max-w-sm border-2 rounded-xl relative overflow-hidden transition-colors duration-300 ${scanStatus === 'found' ? 'border-emerald-500 bg-emerald-500/20' : 'border-white/40'}`}>
             {scanStatus === 'searching' && (
@@ -132,6 +119,15 @@ export default function AutoScannerPage() {
           </div>
         </div>
       </div>
-    </main>
+    </div>
+  );
+}
+
+// 2. The Exported Page with Suspense Wrapper
+export default function AutoScannerPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-slate-950 text-white flex items-center justify-center">Loading Camera...</div>}>
+      <ScannerComponent />
+    </Suspense>
   );
 }
