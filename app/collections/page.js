@@ -6,37 +6,65 @@ import Link from 'next/link';
 
 export default function CollectionsPage() {
   const [user, setUser] = useState(null);
+  const [collections, setCollections] = useState([]);
+  const [loading, setLoading] = useState(true);
   const router = useRouter();
-  
-  // Dummy data state so we can play with the UI
-  const [collections, setCollections] = useState([
-    { id: 1, name: "Charizard Display Case", cardCount: 14, value: 4500.00 },
-    { id: 2, name: "Trade Binder A (Modern)", cardCount: 182, value: 340.50 }
-  ]);
 
   useEffect(() => {
-    const getUser = async () => {
+    const getUserAndCollections = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) router.push('/login');
-      else setUser(user);
+      if (!user) {
+        router.push('/login');
+        return;
+      }
+      setUser(user);
+      await fetchCollections(user.id);
     };
-    getUser();
+    
+    getUserAndCollections();
   }, [router]);
 
-  const handleAddDummyCollection = () => {
-    const newName = prompt("Enter Collection Name (e.g., 'Binder 3'):");
-    if (newName) {
-      const newCollection = {
-        id: Date.now(),
-        name: newName,
-        cardCount: 0,
-        value: 0.00
-      };
-      setCollections([...collections, newCollection]);
+  const fetchCollections = async (userId) => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('collections')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error("Error fetching collections:", error);
+    } else {
+      setCollections(data || []);
+    }
+    setLoading(false);
+  };
+
+  const handleCreateCollection = async () => {
+    const newName = prompt("Enter Collection Name (e.g., 'Modern Hits Binder'):");
+    if (!newName || !newName.trim()) return;
+
+    const { data, error } = await supabase
+      .from('collections')
+      .insert([
+        { 
+          name: newName.trim(), 
+          user_id: user.id 
+        }
+      ])
+      .select();
+
+    if (error) {
+      alert("Error creating collection: " + error.message);
+    } else if (data) {
+      // Add the new collection to the top of our state list
+      setCollections([data[0], ...collections]);
     }
   };
 
-  if (!user) return <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center">Loading...</div>;
+  if (!user || loading) {
+    return <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center">Loading Vault...</div>;
+  }
 
   return (
     <main className="min-h-screen bg-slate-950 text-white">
@@ -57,7 +85,7 @@ export default function CollectionsPage() {
             <p className="text-slate-400 mt-1">Organize your inventory by binders, boxes, or cases.</p>
           </div>
           <button 
-            onClick={handleAddDummyCollection}
+            onClick={handleCreateCollection}
             className="bg-emerald-600 hover:bg-emerald-500 px-5 py-2.5 rounded-xl font-bold shadow-lg transition-all"
           >
             + New Collection
@@ -70,27 +98,24 @@ export default function CollectionsPage() {
             <div key={col.id} className="bg-slate-900 border border-slate-800 hover:border-emerald-500/50 transition-colors rounded-2xl p-6 group cursor-pointer flex flex-col justify-between h-48">
               
               <div className="flex justify-between items-start">
-                <h3 className="font-bold text-lg text-slate-200 group-hover:text-emerald-400 transition-colors">
+                <h3 className="font-bold text-lg text-slate-200 group-hover:text-emerald-400 transition-colors truncate pr-2">
                   {col.name}
                 </h3>
-                <span className="bg-slate-800 text-xs px-2 py-1 rounded text-slate-300 font-mono">
-                  ID: {col.id.toString().slice(0, 4)}
-                </span>
               </div>
 
               <div>
                 <div className="flex justify-between items-end mb-4">
                   <div>
                     <p className="text-xs text-slate-500 uppercase tracking-wider">Cards</p>
-                    <p className="font-mono text-xl">{col.cardCount}</p>
+                    {/* Hardcoded 0s for now until we build the cards table! */}
+                    <p className="font-mono text-xl">0</p> 
                   </div>
                   <div className="text-right">
                     <p className="text-xs text-slate-500 uppercase tracking-wider">Est. Value</p>
-                    <p className="font-mono text-xl text-emerald-500">${col.value.toFixed(2)}</p>
+                    <p className="font-mono text-xl text-emerald-500">$0.00</p>
                   </div>
                 </div>
                 
-                {/* Dummy links for now - later these will link to /collections/[id] */}
                 <div className="flex gap-2">
                   <button className="flex-1 bg-slate-800 hover:bg-slate-700 py-2 rounded-lg text-sm font-semibold transition-all">
                     View Cards
@@ -104,12 +129,12 @@ export default function CollectionsPage() {
             </div>
           ))}
 
-          {/* Empty State / Add Button */}
+          {/* Empty State */}
           {collections.length === 0 && (
             <div className="col-span-full py-12 text-center border-2 border-dashed border-slate-800 rounded-2xl">
               <p className="text-slate-400 mb-4">No collections found.</p>
               <button 
-                onClick={handleAddDummyCollection}
+                onClick={handleCreateCollection}
                 className="text-emerald-500 font-semibold hover:underline"
               >
                 Create your first binder
